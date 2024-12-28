@@ -1,0 +1,22 @@
+{
+	"type": "module",
+	"imports": {
+		"hono": "npm:hono@^4.6.15",
+		"mongodb": "npm:mongodb@^6.12.0"
+	},
+	"tasks": {
+		"devstart": "deno run --env-file --allow-all src/index.ts",
+		"teststart": "deno run --env-file --allow-env --allow-read --allow-net --allow-sys src/index.ts",
+		"prodstart": "deno run --allow-env --allow-read --allow-net --allow-sys src/index.ts",
+		"test": "deno test",
+		"lint": "deno lint && deno fmt --indent-width 4 --use-tabs --check && deno check src/*",
+		"fixlint": "deno fmt --indent-width 4 --use-tabs",
+		"updateall": "deno outdated --update --latest"
+	},
+	"compilerOptions": {
+		"lib": ["DOM", "ESNext", "deno.ns"],
+		"jsx": "precompile",
+		"jsxImportSource": "hono/jsx"
+	},
+	"nodeModulesDir": "auto"
+}
