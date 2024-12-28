@@ -1,23 +1,17 @@
-name: Linton
+name: Lint
 
 on:
     push:
-        branches:
-            - main # Specify the branches to listen to for pushes
+        branches: ["master"]
+        # Publish semver tags as releases.
+        tags: ["v*.*.*"]
     pull_request:
-        branches:
-            - main # This allows the workflow to trigger on pull requests to the specified branch
-
-permissions: {}
+        branches: ["master"]
 
 jobs:
     build:
         name: Lint
         runs-on: ubuntu-latest
-        permissions:
-            contents: read
-            packages: read
-            statuses: write
 
         steps:
             - name: Checkout code
