@@ -1,0 +1,36 @@
+name: Lint
+
+on:
+    push:
+        branches:
+            - "master"
+        tags:
+            - "v*.*.*"
+    pull_request:
+        types: [opened, synchronize, reopened]
+
+jobs:
+    lint:
+        name: Lint
+        runs-on: docker
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Install Deno
+              uses: https://github.com/denoland/setup-deno@v2
+              with:
+                  deno-version: vx.x.x
+
+            - name: Install Dependencies
+              run: deno install
+
+            - name: Lint
+              run: deno lint
+
+            - name: Format
+              run: deno fmt --indent-width 4 --use-tabs --check
+
+            - name: Check types
+              run: deno check src/*

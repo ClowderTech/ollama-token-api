@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
-import { logger } from 'hono/logger'
+import { logger } from "hono/logger";
 import { MongoClient } from "mongodb";
 
 const app = new Hono();
@@ -18,11 +18,11 @@ client.connect(); // Make sure to connect before using
 const db = client.db("ollama");
 
 function removeTrailingSlash(str: string): string {
-    // Check if the string ends with a slash and remove it if present
-    return str.endsWith('/') ? str.slice(0, -1) : str;
+	// Check if the string ends with a slash and remove it if present
+	return str.endsWith("/") ? str.slice(0, -1) : str;
 }
 
-app.use(logger())
+app.use(logger());
 
 app.use(
 	"*",
@@ -40,16 +40,16 @@ app.use(
 		},
 	}),
 	async (c) => {
-		const ollama_url = removeTrailingSlash(Deno.env.get("OLLAMA_URL")!)
+		const ollama_url = removeTrailingSlash(Deno.env.get("OLLAMA_URL")!);
 
 		try {
-			const response = await fetch(`${ollama_url}${c.req.path}`,
-				{
-					method: c.req.method,
-					headers: c.req.header(),
-					body: c.req.method === "GET" || c.req.method === "HEAD" ? undefined : await c.req.arrayBuffer(),
-				},
-			);
+			const response = await fetch(`${ollama_url}${c.req.path}`, {
+				method: c.req.method,
+				headers: c.req.header(),
+				body: c.req.method === "GET" || c.req.method === "HEAD"
+					? undefined
+					: await c.req.arrayBuffer(),
+			});
 
 			// const jsonResponce = await response.json()
 
@@ -60,10 +60,9 @@ app.use(
 			// 		token
 			// 	});
 
-
 			// }
 
-			return response
+			return response;
 		} catch (error) {
 			console.error("Error forwarding request:", error);
 			return c.json({ message: "Internal Server Error" }, 500);

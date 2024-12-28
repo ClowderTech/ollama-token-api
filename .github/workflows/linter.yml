@@ -1,0 +1,43 @@
+name: Linton
+
+on:
+    push:
+        branches:
+            - main # Specify the branches to listen to for pushes
+    pull_request:
+        branches:
+            - main # This allows the workflow to trigger on pull requests to the specified branch
+
+permissions: {}
+
+jobs:
+    build:
+        name: Lint
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: read
+            statuses: write
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Install Deno
+              uses: denoland/setup-deno@v2
+              with:
+                  deno-version: vx.x.x
+
+            - name: Install Dependencies
+              run: deno install
+
+            - name: Lint
+              run: deno lint
+
+            - name: Format
+              run: deno fmt --indent-width 4 --use-tabs --check
+
+            - name: Check types
+              run: deno check src/*
