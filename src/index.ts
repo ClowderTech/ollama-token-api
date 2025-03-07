@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 import { logger } from "hono/logger";
 import { MongoClient } from "mongodb";
+import { serve } from '@hono/node-server'
 
 const app = new Hono();
 
@@ -12,7 +13,7 @@ interface TokenDoc {
 }
 
 // Connect to MongoDB
-const client = new MongoClient(Deno.env.get("MONGODB_URI")!);
+const client = new MongoClient(process.env.MONGODB_URI!);
 client.connect(); // Make sure to connect before using
 
 const db = client.db("ollama");
@@ -40,7 +41,7 @@ app.use(
 		},
 	}),
 	async (c) => {
-		const ollama_url = removeTrailingSlash(Deno.env.get("OLLAMA_URL")!);
+		const ollama_url = removeTrailingSlash(process.env.OLLAMA_URL!);
 
 		try {
 			const response = await fetch(`${ollama_url}${c.req.path}`, {
@@ -70,4 +71,7 @@ app.use(
 	},
 );
 
-Deno.serve(app.fetch);
+serve({
+	fetch: app.fetch,
+	port: 8000,
+})
