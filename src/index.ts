@@ -13,16 +13,19 @@ interface TokenDoc {
 
 // Connect to MongoDB
 const client = new MongoClient();
-client.connect(Deno.env.get("MONGODB_URI")!); // Make sure to connect before using
+const mongo_uri = Deno.env.get("MONGODB_URI")!;
+await client.connect(mongo_uri); // Make sure to connect before using
 
 const db = client.database("ollama");
+const collection = db.collection<TokenDoc>("tokens");
 
 function removeTrailingSlash(str: string): string {
 	// Check if the string ends with a slash and remove it if present
 	return str.endsWith("/") ? str.slice(0, -1) : str;
 }
 
-const ollama_url = removeTrailingSlash(Deno.env.get("OLLAMA_URL")!);
+const ollama_url_unedited = Deno.env.get("OLLAMA_URL")!;
+const ollama_url = removeTrailingSlash(ollama_url_unedited);
 
 app.use(logger());
 
@@ -30,7 +33,7 @@ app.use(
 	"*",
 	bearerAuth({
 		verifyToken: async (token, _c) => {
-			const tokenDoc = await db.collection<TokenDoc>("tokens").findOne({
+			const tokenDoc = await collection.findOne({
 				token,
 			});
 
