@@ -1,14 +1,14 @@
 # Use the latest Node.js image.
-FROM node:current-slim
+FROM denoland/deno:debian-2.6.3
 
 # Set the working directory inside the Docker container.
 WORKDIR /app
 
 # Copy package.json to Docker image.
-COPY package.json ./
+COPY deno.json ./
 
 # Install Npm dependencies.
-RUN npm install 
+RUN deno install 
 
 # Add user so we don't need --no-sandbox.
 RUN groupadd clowdertech && useradd -g clowdertech clowdertech \
@@ -25,4 +25,4 @@ COPY . .
 EXPOSE 8000
 
 # Command to run the application.
-CMD ["npm", "run", "start"]
+CMD ["deno", "run", "start"]

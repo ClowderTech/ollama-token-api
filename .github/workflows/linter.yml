@@ -1,37 +1,37 @@
 name: Lint
 
 on:
-    push:
-        branches: ["master"]
-        # Publish semver tags as releases.
-        tags: ["v*.*.*"]
-    pull_request:
-        branches: ["master"]
+  push:
+    branches: ["master"]
+    # Publish semver tags as releases.
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: ["master"]
 
 jobs:
-    build:
-        name: Lint
-        runs-on: ubuntu-latest
+  build:
+    name: Lint
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: Install Deno
-              uses: denoland/setup-deno@v2
-              with:
-                  deno-version: vx.x.x
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: vx.x.x
 
-            - name: Install Dependencies
-              run: deno install
+      - name: Install Dependencies
+        run: deno install
 
-            - name: Lint
-              run: deno lint
+      - name: Lint
+        run: deno lint
 
-            - name: Format
-              run: deno fmt --indent-width 4 --use-tabs --check
+      - name: Format
+        run: deno fmt --indent-width 4 --use-tabs --check
 
-            - name: Check types
-              run: deno check src/*
+      - name: Check types
+        run: deno check src/*
