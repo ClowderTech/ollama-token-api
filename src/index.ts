@@ -1,7 +1,7 @@
 import { Hono } from "@hono/hono";
 import { bearerAuth } from "@hono/hono/bearer-auth";
 import { logger } from "@hono/hono/logger";
-import { MongoClient } from "@db/mongo";
+import { MongoClient } from "mongodb";
 
 const app = new Hono();
 
@@ -12,11 +12,11 @@ interface TokenDoc {
 }
 
 // Connect to MongoDB
-const client = new MongoClient();
 const mongo_uri = Deno.env.get("MONGODB_URI")!;
-await client.connect(mongo_uri); // Make sure to connect before using
+const client = new MongoClient(mongo_uri);
+await client.connect();
 
-const db = client.database("ollama");
+const db = client.db("ollama");
 const collection = db.collection<TokenDoc>("tokens");
 
 function removeTrailingSlash(str: string): string {

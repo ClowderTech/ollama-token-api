@@ -1,7 +1,7 @@
 {
 	"imports": {
-		"@db/mongo": "jsr:@db/mongo@^0.34.0",
-		"@hono/hono": "jsr:@hono/hono@^4.11.1"
+		"@hono/hono": "jsr:@hono/hono@^4.11.1",
+		"mongodb": "npm:mongodb@^7.0.0"
 	},
 	"fmt": {
 		"indentWidth": 4,
@@ -18,7 +18,9 @@
 	"permissions": {
 		"default": {
 			"env": true,
-			"net": true
+			"net": true,
+			"read": true,
+			"sys": true
 		}
 	},
 	"tasks": {
