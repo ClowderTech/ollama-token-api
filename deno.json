@@ -1,7 +1,7 @@
 {
 	"imports": {
-		"hono": "npm:hono",
-		"mongodb": "npm:mongodb"
+		"@db/mongo": "jsr:@db/mongo@^0.34.0",
+		"@hono/hono": "jsr:@hono/hono@^4.11.1"
 	},
 	"fmt": {
 		"indentWidth": 4,

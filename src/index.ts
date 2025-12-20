@@ -1,7 +1,7 @@
-import { Hono } from "hono";
-import { bearerAuth } from "hono/bearer-auth";
-import { logger } from "hono/logger";
-import { MongoClient } from "mongodb";
+import { Hono } from "@hono/hono";
+import { bearerAuth } from "@hono/hono/bearer-auth";
+import { logger } from "@hono/hono/logger";
+import { MongoClient } from "@db/mongo";
 
 const app = new Hono();
 
@@ -12,15 +12,17 @@ interface TokenDoc {
 }
 
 // Connect to MongoDB
-const client = new MongoClient(Deno.env.get("MONGODB_URI")!);
-client.connect(); // Make sure to connect before using
+const client = new MongoClient();
+client.connect(Deno.env.get("MONGODB_URI")!); // Make sure to connect before using
 
-const db = client.db("ollama");
+const db = client.database("ollama");
 
 function removeTrailingSlash(str: string): string {
 	// Check if the string ends with a slash and remove it if present
 	return str.endsWith("/") ? str.slice(0, -1) : str;
 }
+
+const ollama_url = removeTrailingSlash(Deno.env.get("OLLAMA_URL")!);
 
 app.use(logger());
 
@@ -40,8 +42,6 @@ app.use(
 		},
 	}),
 	async (c) => {
-		const ollama_url = removeTrailingSlash(Deno.env.get("OLLAMA_URL")!);
-
 		try {
 			const response = await fetch(`${ollama_url}${c.req.path}`, {
 				method: c.req.method,
