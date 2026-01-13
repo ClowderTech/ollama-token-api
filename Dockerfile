@@ -1,5 +1,5 @@
 # Use the latest Node.js image.
-FROM denoland/deno:debian-2.6.3
+FROM denoland/deno:debian-2.6.4
 
 # Set the working directory inside the Docker container.
 WORKDIR /app
