@@ -3,6 +3,7 @@ ARG UID=10001
 
 # Use the latest Node.js image.
 FROM denoland/deno:debian-${DENO_VERSION}
+ARG UID
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -28,7 +29,7 @@ COPY deno.json ./
 RUN deno install 
 
 # Run everything after as non-privileged user.
-USER clowdertech
+USER appuser
 
 # Copy all other files from the current directory to /app in the container.
 COPY . .
