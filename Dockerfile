@@ -1,20 +1,31 @@
+ARG DENO_VERSION=2.7.13
+ARG UID=10001
+
 # Use the latest Node.js image.
-FROM denoland/deno:debian-2.7.12
+FROM denoland/deno:debian-${DENO_VERSION}
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Set the working directory inside the Docker container.
 WORKDIR /app
+
+RUN groupadd \
+    --gid "${UID}" \
+    --system \
+    appuser \ 
+    && useradd \
+    --create-home \
+    --uid "${UID}" \
+    --gid "${UID}" \
+    --no-log-init \
+    --system \
+    appuser
 
 # Copy package.json to Docker image.
 COPY deno.json ./
 
 # Install Npm dependencies.
 RUN deno install 
-
-# Add user so we don't need --no-sandbox.
-RUN groupadd clowdertech && useradd -g clowdertech clowdertech \
-    && mkdir -p /home/clowdertech/Downloads /app \
-    && chown -R clowdertech:clowdertech /home/clowdertech \
-    && chown -R clowdertech:clowdertech /app
 
 # Run everything after as non-privileged user.
 USER clowdertech
