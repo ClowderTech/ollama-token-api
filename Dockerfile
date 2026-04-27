@@ -10,12 +10,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set the working directory inside the Docker container.
 WORKDIR /app
 
-# Copy package.json to Docker image.
-COPY deno.json ./
-
-# Install Npm dependencies.
-RUN deno install 
-
 RUN groupadd \
     --gid "${UID}" \
     --system \
@@ -27,6 +21,14 @@ RUN groupadd \
     --no-log-init \
     --system \
     appuser
+
+# Copy package.json to Docker image.
+COPY deno.json ./
+
+# Install Npm dependencies.
+RUN deno install
+
+RUN chown -R appuser:appuser /app
 
 # Run everything after as non-privileged user.
 USER appuser
