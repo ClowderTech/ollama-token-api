@@ -28,8 +28,6 @@ COPY deno.json ./
 # Install Npm dependencies.
 RUN deno install
 
-RUN chown -R appuser:appuser /app
-
 # Run everything after as non-privileged user.
 USER appuser
 
