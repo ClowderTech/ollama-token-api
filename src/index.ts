@@ -27,6 +27,8 @@ function removeTrailingSlash(str: string): string {
 const ollama_url_unedited = Deno.env.get("OLLAMA_URL")!;
 const ollama_url = removeTrailingSlash(ollama_url_unedited);
 
+const testing = Boolean(Deno.env.get("TESTING")) || false;
+
 app.use(logger());
 
 app.use(
@@ -37,6 +39,10 @@ app.use(
 				token,
 			});
 
+			if (testing && token === "testing") {
+				return true
+			}
+
 			if (!tokenDoc) {
 				return false;
 			}
@@ -46,7 +52,7 @@ app.use(
 	}),
 	async (c) => {
 		try {
-			const response = await fetch(`${ollama_url}${c.req.path}`, {
+			const ollama_response = await fetch(`${ollama_url}${c.req.path}`, {
 				method: c.req.method,
 				headers: c.req.header(),
 				body: c.req.method === "GET" || c.req.method === "HEAD"
@@ -54,18 +60,15 @@ app.use(
 					: await c.req.arrayBuffer(),
 			});
 
-			// const jsonResponce = await response.json()
+			const json_responce = await ollama_response.json()
 
-			// if (jsonResponce["prompt_eval_count"] && jsonResponce["eval_count"]) {
-			// 	const token = c.req.header("Authorization")!.replace("Bearer ", "")
+			if (c.req.path === "/v1/responses") {
+				if (!json_responce["usage"]["output_tokens_details"]) {
+					json_responce["usage"]["output_tokens_details"] = {"reasoning_tokens": 0}
+				}
+			}
 
-			// 	const tokenDoc = await db.collection<TokenDoc>("tokens").findOne({
-			// 		token
-			// 	});
-
-			// }
-
-			return response;
+			return c.json(json_responce);
 		} catch (error) {
 			console.error("Error forwarding request:", error);
 			return c.json({ message: "Internal Server Error" }, 500);
