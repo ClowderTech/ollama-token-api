@@ -91,7 +91,7 @@ app.use(
 
 									// Safely catch the final chunk that holds the usage stats
 									if (data && data.usage && !data.usage.output_token_details) {
-										data.usage.output_token_details = { reasoning_tokens: 0 };
+										data.usage.output_tokens_details = { reasoning_tokens: 0 };
 									}
 
 									controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n`));
@@ -124,7 +124,7 @@ app.use(
 				const data = await ollama_response.json();
 
 				if (data && data.usage && !data.usage.output_token_details) {
-					data.usage.output_token_details = { reasoning_tokens: 0 };
+					data.usage.output_tokens_details = { reasoning_tokens: 0 };
 				}
 
 				return new Response(JSON.stringify(data), {
