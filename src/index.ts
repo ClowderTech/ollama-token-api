@@ -60,6 +60,7 @@ app.use(
 					: await c.req.arrayBuffer(),
 			});
 
+            /*
 			const json_responce = await ollama_response.json()
 
 			if (c.req.path === "/v1/responses") {
@@ -69,6 +70,9 @@ app.use(
 			}
 
 			return c.json(json_responce);
+            */
+
+            return ollama_response;
 		} catch (error) {
 			console.error("Error forwarding request:", error);
 			return c.json({ message: "Internal Server Error" }, 500);
