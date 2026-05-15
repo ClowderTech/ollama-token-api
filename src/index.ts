@@ -20,7 +20,6 @@ const db = client.db("ollama");
 const collection = db.collection<TokenDoc>("tokens");
 
 function removeTrailingSlash(str: string): string {
-	// Check if the string ends with a slash and remove it if present
 	return str.endsWith("/") ? str.slice(0, -1) : str;
 }
 
@@ -40,7 +39,7 @@ app.use(
 			});
 
 			if (testing && token === "testing") {
-				return true
+				return true;
 			}
 
 			if (!tokenDoc) {
@@ -52,6 +51,7 @@ app.use(
 	}),
 	async (c) => {
 		try {
+			// 1. Forward the initial request payload
 			const ollama_response = await fetch(`${ollama_url}${c.req.path}`, {
 				method: c.req.method,
 				headers: c.req.header(),
@@ -60,19 +60,82 @@ app.use(
 					: await c.req.arrayBuffer(),
 			});
 
-            /*
-			const json_responce = await ollama_response.json()
+			const contentType = ollama_response.headers.get("content-type") || "";
+			
+			// 2. Clone headers and remove content-length since mutating JSON changes the byte size
+			const newHeaders = new Headers(ollama_response.headers);
+			newHeaders.delete("content-length");
 
-			if (c.req.path === "/v1/responses") {
-				if (!json_responce["usage"]["output_tokens_details"]) {
-					json_responce["usage"]["output_tokens_details"] = {"reasoning_tokens": 0}
-				}
+			// ================================================================
+			// BRANCH A: Handle Streaming Connections (text/event-stream)
+			// ================================================================
+			if (contentType.includes("text/event-stream")) {
+				const decoder = new TextDecoder();
+				const encoder = new TextEncoder();
+				let buffer = "";
+
+				const transformStream = new TransformStream({
+					transform(chunk, controller) {
+						buffer += decoder.decode(chunk, { stream: true });
+						const lines = buffer.split("\n");
+						
+						// Keep partial line in buffer if chunk split mid-way
+						buffer = lines.pop() || "";
+
+						for (const line of lines) {
+							// Filter for line data, ignoring the final text/stream close signal
+							if (line.startsWith("data: ") && line !== "data: [DONE]") {
+								try {
+									const jsonStr = line.slice(6);
+									const data = JSON.parse(jsonStr);
+
+									// Safely catch the final chunk that holds the usage stats
+									if (data && data.usage && !data.usage.output_token_details) {
+										data.usage.output_token_details = { reasoning_tokens: 0 };
+									}
+
+									controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n`));
+								} catch {
+									// In case line parsing errors out, pass through original string cleanly
+									controller.enqueue(encoder.encode(line + "\n"));
+								}
+							} else {
+								controller.enqueue(encoder.encode(line + "\n"));
+							}
+						}
+					},
+					flush(controller) {
+						if (buffer) {
+							controller.enqueue(encoder.encode(buffer));
+						}
+					}
+				});
+
+				return new Response(ollama_response.body?.pipeThrough(transformStream), {
+					status: ollama_response.status,
+					headers: newHeaders,
+				});
 			}
 
-			return c.json(json_responce);
-            */
+			// ================================================================
+			// BRANCH B: Handle Standard Block Responses (application/json)
+			// ================================================================
+			if (contentType.includes("application/json")) {
+				const data = await ollama_response.json();
 
-            return ollama_response;
+				if (data && data.usage && !data.usage.output_token_details) {
+					data.usage.output_token_details = { reasoning_tokens: 0 };l
+				}
+
+				return new Response(JSON.stringify(data), {
+					status: ollama_response.status,
+					headers: newHeaders,
+				});
+			}
+
+			// Branch C: Static configurations, health checks, or images pass straight through
+			return ollama_response;
+
 		} catch (error) {
 			console.error("Error forwarding request:", error);
 			return c.json({ message: "Internal Server Error" }, 500);
