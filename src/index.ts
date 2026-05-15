@@ -124,7 +124,7 @@ app.use(
 				const data = await ollama_response.json();
 
 				if (data && data.usage && !data.usage.output_token_details) {
-					data.usage.output_token_details = { reasoning_tokens: 0 };l
+					data.usage.output_token_details = { reasoning_tokens: 0 };
 				}
 
 				return new Response(JSON.stringify(data), {
