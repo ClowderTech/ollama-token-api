@@ -1,5 +1,5 @@
 ARG DENO_VERSION=2.9.5
-ARG UID=10001
+ARG UID=1000
 
 # Use the latest Node.js image.
 FROM denoland/deno:debian-${DENO_VERSION}
