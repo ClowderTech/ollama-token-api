@@ -1,4 +1,4 @@
-import { Hono } from "@hono/hono";
+import { Context, Hono } from "@hono/hono";
 import { bearerAuth } from "@hono/hono/bearer-auth";
 import { logger } from "@hono/hono/logger";
 import { MongoClient } from "mongodb";
@@ -33,7 +33,7 @@ app.use(logger());
 app.use(
 	"*",
 	bearerAuth({
-		verifyToken: async (token, _c) => {
+		verifyToken: async (token: string, _c: Context) => {
 			const tokenDoc = await collection.findOne({
 				token,
 			});
@@ -49,7 +49,7 @@ app.use(
 			return true;
 		},
 	}),
-	async (c) => {
+	async (c: Context) => {
 		try {
 			// 1. Forward the initial request payload
 			const ollama_response = await fetch(`${ollama_url}${c.req.path}`, {
