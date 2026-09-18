@@ -1,6 +1,6 @@
 {
 	"imports": {
-		"@hono/hono": "jsr:@hono/hono@^4.13.7",
+		"@hono/hono": "jsr:@hono/hono@^4.13.8",
 		"mongodb": "npm:mongodb@7.6.0"
 	},
 	"fmt": {
