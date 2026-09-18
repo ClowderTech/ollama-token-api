@@ -70,7 +70,7 @@ const joinToolName = (ns: string, name: string) =>
 	ns ? `${ns.replace(/_+$/, "")}__${name.replace(/^_+/, "")}` : name;
 
 // These are Responses-only / tool-search-only fields that must not leak upstream.
-const STRIP = new Set(["type", "tools", "namespace", "defer_loading"]);
+const STRIP = new Set(["type", "tools", "namespace", "defer_loading", "function"]);
 
 /**
  * Returns the INNER function object only — emit() wraps it in {type:"function", function:…}.
