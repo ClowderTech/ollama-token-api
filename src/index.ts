@@ -278,6 +278,32 @@ function remapToolChoice(
 	return "auto";
 }
 
+function hoistSystemMessages(body: Json): void {
+	// Codex might use `input` (/v1/responses) or `messages` (/v1/chat/completions)
+	const target = Array.isArray(body.input)
+		? body.input
+		: (Array.isArray(body.messages) ? body.messages : null);
+	if (!target) return;
+
+	const systemMessages = [];
+	const otherMessages = [];
+
+	// Separate system/developer messages from user/assistant messages
+	for (const msg of target) {
+		if (isObj(msg) && (msg.role === "system" || msg.role === "developer")) {
+			systemMessages.push(msg);
+		} else {
+			otherMessages.push(msg);
+		}
+	}
+
+	// Rebuild the array with system messages strictly at the beginning
+	if (systemMessages.length > 0) {
+		target.length = 0; // Clear original array
+		target.push(...systemMessages, ...otherMessages);
+	}
+}
+
 function compatRequest(body: Json): {
 	body: Json;
 	alias: Map<string, Alias>;
@@ -286,15 +312,22 @@ function compatRequest(body: Json): {
 	const alias = new Map<string, Alias>();
 	const log: Log = { flattened: [], stubbed: [], restored: 0, dropped: [] };
 	const out: Json = { ...body };
+
 	if (Array.isArray(body.tools) && body.tools.length) {
 		const flat = flattenTools(body.tools, alias, log);
 		if (flat.length) out.tools = flat;
 		else delete out.tools;
 	}
+
 	if (alias.size) rewriteInput(body.input, alias);
+
 	if (out.tool_choice !== undefined) {
 		out.tool_choice = remapToolChoice(out.tool_choice, alias, log);
 	}
+
+	// ADD THIS LINE: Force system/developer messages to index 0
+	hoistSystemMessages(out);
+
 	return { body: out, alias, log };
 }
 
