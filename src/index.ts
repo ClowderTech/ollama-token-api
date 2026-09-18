@@ -121,7 +121,7 @@ function flattenTools(
             return;
         }
 
-        // 2. web_search -> synthesise a Chat-Completions equivalent (issue #24295).
+        // 2. web_search -> synthesise a Chat-Completions equivalent.
         if (type === "web_search") {
             if (web_search_mode === "drop") {
                 log.dropped.push("web_search (drop)");
@@ -139,14 +139,26 @@ function flattenTools(
         if (
             type === "function" ||
             (typeof tool.name === "string" &&
-                (tool.parameters !== undefined || isObj(tool.function)))
+                (tool.parameters !== undefined || isObj(tool.function))) ||
+            isObj(tool.function)
         ) {
-            const fn: Json = isObj(tool.function) ? { ...tool.function } : {};
+            let inner = isObj(tool.function) ? tool.function : null;
+            
+            // Drill down if the upstream client already double-nested the function
+            if (inner && isObj(inner.function)) {
+                inner = inner.function;
+            }
+
+            const fn: Json = inner ? { ...inner } : {};
             
             // "function" is now in STRIP, meaning it won't be copied back into fn
             for (const k of Object.keys(tool)) {
                 if (!STRIP.has(k)) fn[k] = tool[k];
             }
+
+            // Hard guarantee against double-nesting inside fn
+            delete fn.function;
+            delete fn.type;
 
             const raw = typeof fn.name === "string" ? fn.name : "";
             if (!raw) {
