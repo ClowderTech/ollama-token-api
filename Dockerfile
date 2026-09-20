@@ -1,4 +1,4 @@
-ARG DENO_VERSION=2.9.5
+ARG DENO_VERSION=2.9.7
 ARG UID=1000
 
 # Use the latest Node.js image.
