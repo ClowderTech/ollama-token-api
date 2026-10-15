@@ -943,29 +943,55 @@ struct Unauthorized;
 
 impl warp::reject::Reject for Unauthorized {}
 
-impl warp::reply::Reply for Unauthorized {
-    fn into_response(self) -> warp::reply::Response {
-        warp::reply::with_status(
-            warp::reply::json(&json!({ "error": { "message": "Unauthorized" } })),
-            warp::http::StatusCode::UNAUTHORIZED,
-        )
-        .into_response()
-    }
-}
-
 #[derive(Debug)]
 struct DatabaseError;
 
 impl warp::reject::Reject for DatabaseError {}
 
-impl warp::reply::Reply for DatabaseError {
-    fn into_response(self) -> warp::reply::Response {
-        warp::reply::with_status(
-            warp::reply::json(&json!({ "error": { "message": "Internal Server Error" } })),
-            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-        )
-        .into_response()
+#[derive(Debug)]
+struct PayloadTooLarge;
+
+impl warp::reject::Reject for PayloadTooLarge {}
+
+// warp renders custom rejections as a bare 500 "Unhandled rejection" unless a
+// recover filter turns them into the intended status/body.
+fn json_error(status: warp::http::StatusCode, message: &str) -> warp::reply::Response {
+    warp::reply::with_status(
+        warp::reply::json(&json!({ "error": { "message": message } })),
+        status,
+    )
+    .into_response()
+}
+
+async fn handle_rejection(
+    err: warp::Rejection,
+) -> Result<warp::reply::Response, std::convert::Infallible> {
+    if err.find::<Unauthorized>().is_some() {
+        return Ok(json_error(
+            warp::http::StatusCode::UNAUTHORIZED,
+            "Unauthorized",
+        ));
     }
+    if err.find::<PayloadTooLarge>().is_some() {
+        return Ok(json_error(
+            warp::http::StatusCode::PAYLOAD_TOO_LARGE,
+            "Payload Too Large",
+        ));
+    }
+    if err.find::<DatabaseError>().is_some() {
+        return Ok(json_error(
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal Server Error",
+        ));
+    }
+    if err.is_not_found() {
+        return Ok(json_error(warp::http::StatusCode::NOT_FOUND, "Not Found"));
+    }
+    tracing::error!("unhandled rejection: {:?}", err);
+    Ok(json_error(
+        warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        "Internal Server Error",
+    ))
 }
 
 async fn verify_token(
@@ -1060,29 +1086,29 @@ async fn main() {
     let http_client_for_route = http_client.clone();
 
     let proxy_route = warp::path::full()
+        // warp::query::raw() rejects with InvalidQuery when there is no query
+        // string at all, so fall back to empty.
+        .and(warp::query::raw().or(warp::any().map(String::new)).unify())
         .and(warp::method())
         .and(warp::header::headers_cloned())
-        .and(warp::body::bytes())
-        .and(warp::filters::body::content_length_limit(32 * 1024 * 1024))
+        .and(body_limited(32 * 1024 * 1024))
         .and(with_config(config_for_route))
         .and(with_http_client(http_client_for_route))
         .and_then(
             move |full_path: warp::path::FullPath,
+                  raw_query: String,
                   method: warp::hyper::Method,
                   headers: warp::http::HeaderMap,
                   body: Bytes,
                   config: Arc<Config>,
                   http_client: reqwest::Client| async move {
-                let full = full_path.as_str();
-                let (path_only, query) = if let Some(idx) = full.find('?') {
-                    (&full[..idx], Some(full[idx + 1..].to_string()))
+                // FullPath is only the path portion; the query string has to
+                // come from warp::query::raw or it is dropped.
+                let path = full_path.as_str().to_string();
+                let query = if raw_query.is_empty() {
+                    String::new()
                 } else {
-                    (full, None)
-                };
-                let path = path_only.to_string();
-                let query = match query {
-                    Some(q) if !q.is_empty() => format!("?{}", q),
-                    _ => String::new(),
+                    format!("?{}", raw_query)
                 };
 
                 proxy_handler(
@@ -1102,7 +1128,8 @@ async fn main() {
     let app = warp::any()
         .and(auth_filter)
         .and(proxy_route)
-        .map(|_auth: (), resp: warp::reply::Response| resp);
+        .map(|_auth: (), resp: warp::reply::Response| resp)
+        .recover(handle_rejection);
 
     // Logging middleware
     let app = app.with(warp::log::custom(|info| {
@@ -1118,6 +1145,32 @@ async fn main() {
 
     tracing::info!("Listening on 0.0.0.0:8000");
     warp::serve(app).run(([0, 0, 0, 0], 8000)).await;
+}
+
+// Body filter that never rejects with 411: warp's built-in
+// `content_length_limit` requires a `content-length` header, so GET/HEAD and
+// chunked requests fail before the route runs. The limit is enforced on the
+// bytes actually read, with the header used only as an early-out.
+fn body_limited(limit: u64) -> impl Filter<Extract = (Bytes,), Error = warp::Rejection> + Clone {
+    warp::header::optional::<u64>(warp::http::header::CONTENT_LENGTH.as_str())
+        .and_then(move |declared: Option<u64>| async move {
+            if declared.unwrap_or(0) > limit {
+                tracing::debug!(
+                    "declared content-length {} over limit",
+                    declared.unwrap_or(0)
+                );
+                return Err(warp::reject::custom(PayloadTooLarge));
+            }
+            Ok::<(), warp::Rejection>(())
+        })
+        .and(warp::body::bytes())
+        .and_then(move |_: (), body: Bytes| async move {
+            if (body.len() as u64) > limit {
+                tracing::debug!("body of {} bytes over limit", body.len());
+                return Err(warp::reject::custom(PayloadTooLarge));
+            }
+            Ok::<Bytes, warp::Rejection>(body)
+        })
 }
 
 fn with_config(
