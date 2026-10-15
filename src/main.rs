@@ -775,6 +775,8 @@ async fn proxy_handler(
         if query.is_empty() { "" } else { &query }
     );
 
+    tracing::debug!("upstream url: {}", url);
+
     let mut req = client
         .request(
             warp::hyper::Method::from_bytes(method.as_str().as_bytes()).unwrap(),
@@ -1059,7 +1061,6 @@ async fn main() {
 
     let proxy_route = warp::path::full()
         .and(warp::method())
-        .and(warp::query::raw())
         .and(warp::header::headers_cloned())
         .and(warp::body::bytes())
         .and(warp::filters::body::content_length_limit(32 * 1024 * 1024))
@@ -1068,16 +1069,20 @@ async fn main() {
         .and_then(
             move |full_path: warp::path::FullPath,
                   method: warp::hyper::Method,
-                  query_string: String,
                   headers: warp::http::HeaderMap,
                   body: Bytes,
                   config: Arc<Config>,
                   http_client: reqwest::Client| async move {
-                let path = full_path.as_str().to_string();
-                let query = if query_string.is_empty() {
-                    String::new()
+                let full = full_path.as_str();
+                let (path_only, query) = if let Some(idx) = full.find('?') {
+                    (&full[..idx], Some(full[idx + 1..].to_string()))
                 } else {
-                    format!("?{}", query_string)
+                    (full, None)
+                };
+                let path = path_only.to_string();
+                let query = match query {
+                    Some(q) if !q.is_empty() => format!("?{}", q),
+                    _ => String::new(),
                 };
 
                 proxy_handler(
