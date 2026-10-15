@@ -1,40 +1,63 @@
-ARG DENO_VERSION=2.9.7
+# syntax=docker/dockerfile:1
+
+ARG RUST_VERSION=1.99.0
+ARG APP_NAME=ollama-token-api
 ARG UID=1000
 
-# Use the latest Node.js image.
-FROM denoland/deno:debian-${DENO_VERSION}
+FROM rust:${RUST_VERSION}-trixie AS build
+ARG APP_NAME
 ARG UID
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Set the working directory inside the Docker container.
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    cmake \
+    libssl-dev \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY Cargo.toml Cargo.lock .cargo build.rs ./
+COPY src/ ./src/
+
+RUN --mount=type=cache,target=/app/target/ \
+    --mount=type=cache,target=/usr/local/cargo/registry/ \
+    cargo build --locked --profile release && cp target/release/${APP_NAME} /app/server
+
+FROM debian:trixie-slim AS final
+ARG APP_NAME
+ARG UID
+
+LABEL vendor="ClowderTech LLC" \
+    maintainer="ClowderTech LLC"
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN groupadd \
     --gid "${UID}" \
     --system \
-    appuser \ 
+    appuser \
     && useradd \
-    --create-home \
     --uid "${UID}" \
     --gid "${UID}" \
     --no-log-init \
     --system \
     appuser
 
-# Copy package.json to Docker image.
-COPY deno.json ./
+# Install only what's needed to run the binary
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Npm dependencies.
-RUN deno install
-
-# Run everything after as non-privileged user.
 USER appuser
+WORKDIR /app
 
-# Copy all other files from the current directory to /app in the container.
-COPY . .
+# Copy the compiled binary from the build stage
+COPY --from=build /app/server /app/server
 
-EXPOSE 8000
-
-# Command to run the application.
-CMD ["deno", "task", "start"]
+# Start the server
+CMD ["/app/server"]
